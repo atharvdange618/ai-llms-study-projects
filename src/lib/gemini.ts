@@ -80,6 +80,12 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 6): Promise<T> {
     } catch (err) {
       if (!(err instanceof ApiError) || err.status !== 429 || i === attempts)
         throw err;
+      // The daily cap won't clear with a few seconds of waiting, so stop now.
+      if (err.message.includes("PerDay"))
+        throw new Error(
+          "Daily free-tier quota used up. It resets at midnight Pacific time.",
+          { cause: err },
+        );
       const waitMs = 2 ** i * 1000;
       console.warn(`Rate limited, retrying in ${waitMs / 1000}s`);
       await sleep(waitMs);
