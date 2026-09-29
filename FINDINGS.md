@@ -143,12 +143,25 @@ What we learned:
 - **Math, output cost first:** manual few-shot CoT at about a third of the output, if an occasional miss is acceptable.
 - **Auto-CoT:** never the right pick here. It matches zero-shot CoT's score at 16x the input. It would earn its cost on a task where zero-shot CoT makes mistakes.
 
+## Flip rates (partial, 2026-09-29)
+
+The first `flip-rates -- tickets` run hit the 500 requests a day cap during its last report. The harness only saved at the end then, so per-case data was lost. Only the totals printed:
+
+| Technique | Run 1 | Run 2 | Run 3 | Run 4 | Run 5 | Total |
+|---|---|---|---|---|---|---|
+| Zero-shot | 11 | 11 | 10 | 11 | 10 | 53/60 (88%) |
+| Few-shot | 12 | 11 | 12 | 12 | lost | 47/48 (98%) |
+
+- **The tie may not be real.** Single runs gave 11/12 each, three times. Over repeated runs zero-shot missed 7 times and few-shot missed once. That's the gap the examples were built to create, and one run per technique hid it. We need the per-case table before we can call it.
+- **The harness now saves each report as it finishes** (`results/flip-rates.jsonl`) and resumes from there, and the client stops at once on the daily cap instead of backing off.
+
 ## Gotchas hit along the way
 
 - **`thinkingBudget: 0` returns a generic 400 on Gemini 3 models.** Use `thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL }`. `MINIMAL` is not a hard off switch the way budget 0 was.
 - **`Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)`** on Windows with Node 24 is exit noise after an uncaught error. Fix the real error and it goes away.
 - **Gemini tokenizes numbers digit by digit,** so `Answer: 1980` costs more tokens than it looks. Leave slack in any output cap.
 - **Always check `finishReason`.** A cut-off reply parsed with a fallback looks like a wrong answer (`got 1`, `got 60`). `MAX_TOKENS` tells you it was cut.
+- **Free tier also caps at 500 requests a day per model**, reset at midnight Pacific. A full day of experiments reaches it. The error names `GenerateRequestsPerDayPerProjectPerModel-FreeTier`.
 - **Free tier rate limit** is about 15 requests a minute. `withRetry` in `src/lib/gemini.ts` backs off 2s, 4s, 8s and on up. Runs still finish.
 - **The soft prefill** (`Answer:` at the end of the user message) worked on 15 of 16. True prefill (text inside the model's own turn) would be stricter if needed.
 
@@ -168,7 +181,7 @@ Lesson: test every explanation of why a model did something, the same way you'd 
 
 All five projects are run. Every conclusion above rests on one or two runs, and the showdown already flipped one of them. The follow-up worth doing first:
 
-- Run each technique 5 times and report flip rates per case (about 20 min). Turns anecdotes into numbers.
+- **Finish the flip-rate runs** with `npm run flip-rates -- tickets` (about 120 calls), then `npm run flip-rates -- math` (about 370 calls). Together they're just under one day's quota, so math may spill into a second day. The harness resumes on its own.
 
 Other ideas, rough time each:
 
