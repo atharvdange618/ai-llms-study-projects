@@ -1,0 +1,23 @@
+{
+  "name": "prompting-techniques",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "zero-shot": "tsx src/01-zero-shot.ts",
+    "few-shot": "tsx src/02-few-shot.ts",
+    "cot": "tsx src/03-chain-of-thought.ts",
+    "auto-cot": "tsx src/04-auto-cot.ts",
+    "showdown": "tsx src/05-showdown.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@google/genai": "^2.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}
