@@ -3,7 +3,8 @@ import type { Case } from "../lib/eval.js";
 export const LABELS = ["billing", "bug", "feature", "account"] as const;
 export type Label = (typeof LABELS)[number];
 
-// House rules the model can't guess from label names alone (the few-shot examples teach them):
+// House rules the label names don't spell out (the few-shot examples teach them; in our runs
+// the model guessed most of them anyway, see FINDINGS.md):
 //   - login, password and 2FA problems are "account", even when they look like bugs
 //   - anything about money is "billing", even when a bug caused it
 //   - "why can't I" and "you still don't support" complaints are "feature"

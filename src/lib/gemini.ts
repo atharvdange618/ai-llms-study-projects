@@ -20,7 +20,8 @@ if (!apiKey)
 
 const ai = new GoogleGenAI({ apiKey });
 
-// Flash-Lite on purpose: the smaller the model, the bigger the gap between prompting techniques.
+// Flash-Lite on purpose: smaller models should show bigger gaps between prompting techniques.
+// Even so, the gaps here were small (see FINDINGS.md). Try a weaker model to widen them.
 export const MODEL = "gemini-3.5-flash-lite";
 const EMBED_MODEL = "gemini-embedding-001";
 

@@ -6,7 +6,8 @@ import { clusterByCosine } from "./lib/kmeans.js";
 
 const CLUSTERS = 4;
 // Paper heuristic: prefer short chains. Long ones are more likely to hide a mistake,
-// and a wrong demo teaches the model to repeat that mistake.
+// and a wrong demo teaches the model to repeat that mistake. The paper counts reasoning steps;
+// counting non-blank lines is cruder, since markdown bullets inflate it.
 const MAX_REASONING_LINES = 8;
 
 /**
