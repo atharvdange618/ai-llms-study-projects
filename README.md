@@ -23,8 +23,9 @@ npm test               # offline, checks the parser and k-means
 | `npm run cot` | 16 math problems: direct answer vs zero-shot CoT vs hand-written CoT demos | 48 | 3 to 5 min |
 | `npm run auto-cot` | Math with CoT demos the model writes for itself | 21 to 30 | 2 to 3 min |
 | `npm run showdown` | Everything above, tables only | about 95 | 5 to 8 min |
+| `npm run flip-rates` | Everything 5 times, counting how often each case passes. Add `-- tickets` or `-- math` to run one task | about 475 (120 tickets, 355 math) | 35 to 45 min |
 
-The free tier allows about 15 requests a minute. The client backs off and retries on rate limits, so `Rate limited, retrying in 8s` lines are normal.
+The free tier allows about 15 requests a minute and 500 a day per model. The client backs off and retries on the per-minute limit, so `Rate limited, retrying in 8s` lines are normal. `flip-rates` saves each finished report to `results/flip-rates.jsonl` and skips saved work on restart, so if it hits the daily cap, run it again the next day. Delete that file to start over.
 
 Reading the table:
 
@@ -45,10 +46,11 @@ Results vary a little between runs even at temperature 0. Run a script twice bef
 
 ```
 src/
-  01-zero-shot.ts ... 05-showdown.ts   one script per experiment
+  01-zero-shot.ts ... 06-flip-rates.ts one script per experiment
   data/                                test cases with expected answers
   lib/gemini.ts                        API client, retries, token counts
   lib/eval.ts                          runs a technique over cases, prints the table
+  lib/flips.ts                         per-case pass counts across repeated runs
   lib/parse.ts                         pulls the label or number out of a reply
   lib/kmeans.ts                        clustering for Auto-CoT
 ```

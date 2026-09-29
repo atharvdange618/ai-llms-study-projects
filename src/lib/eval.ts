@@ -21,6 +21,8 @@ export interface Report {
   inputTokens: number;
   outputTokens: number;
   truncated: number;
+  // One entry per case, in order: what the parser got and whether it matched.
+  results: { got: string; ok: boolean }[];
 }
 
 export async function evaluate<A>(
@@ -42,6 +44,7 @@ export async function evaluate<A>(
     inputTokens: 0,
     outputTokens: 0,
     truncated: 0,
+    results: [],
   };
   for (const c of cases) {
     const reply = await ask(
@@ -54,6 +57,7 @@ export async function evaluate<A>(
     report.inputTokens += reply.inputTokens;
     report.outputTokens += reply.outputTokens;
     if (reply.truncated) report.truncated++;
+    report.results.push({ got: String(got), ok });
     if (verbose) {
       console.log(
         `${ok ? "PASS" : "FAIL"}${reply.truncated ? " (CUT OFF)" : ""}  expected ${String(c.expected)}, got ${String(got)}`,

@@ -8,6 +8,7 @@
     "cot": "tsx src/03-chain-of-thought.ts",
     "auto-cot": "tsx src/04-auto-cot.ts",
     "showdown": "tsx src/05-showdown.ts",
+    "flip-rates": "tsx src/06-flip-rates.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
