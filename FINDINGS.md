@@ -38,7 +38,7 @@ Input tokens: 546 zero-shot, 1566 few-shot (2.9x for the same score).
 
 What we learned:
 
-- **On this model, zero-shot and few-shot tie.** Gemini 3.5 Flash-Lite guesses most house rules without examples. Every score change came from three borderline tickets flipping on small prompt changes.
+- **On this model, zero-shot and few-shot tie.** (Overturned by the flip-rate run: 92% vs 100%.) Gemini 3.5 Flash-Lite guesses most house rules without examples. Every score change came from three borderline tickets flipping on small prompt changes.
 - **One example can flip one ticket.** Removing the reset-password example sent the 2FA ticket back to `bug`. That's a clean ablation: one change, one effect.
 - **The effects don't add up.** The 2FA ticket passed with 0 examples, failed with 3 and passed with 4. Borderline inputs are sensitive to the whole prompt, not to single parts. This matches Zhao et al. 2021, "Calibrate Before Use".
 - **Format alone moves answers.** The few-shot template with no examples fixed 2FA and broke the locked-out ticket.
@@ -136,24 +136,84 @@ What we learned:
 - **Auto-CoT's demos changed between runs.** The clusters are deterministic, but the chains zero-shot CoT writes for them aren't. Input grew by 688 tokens, so at least one demo came out different. Nondeterminism reaches the prompt itself, not just the answers.
 - **Prefill is less firm than one run suggested.** Three direct answers got cut off this time, against one before.
 
+### Second run (2026-09-30)
+
+| Task | Technique | Run 1 | Run 2 | Input, run 2 | Output, run 2 | Cut off, run 2 |
+|---|---|---|---|---|---|---|
+| Tickets | Zero-shot | 11/12 | 11/12 | 546 | 12 | 0 |
+| Tickets | Few-shot | 11/12 | **12/12** | 1566 | 14 | 0 |
+| Math | Direct (prefilled) | 12/16 | 12/16 | 990 | 104 | 2 |
+| Math | Zero-shot CoT | 16/16 | 16/16 | 1038 | 3449 | 0 |
+| Math | Few-shot CoT, manual | 15/16 | **16/16** | 6750 | 1260 | 0 |
+| Math | Auto-CoT | 16/16 | 16/16 | 16798 | 3488 | 0 |
+
+- **Both run 1 changes undid themselves.** Manual few-shot CoT went back to 16/16, so its 15/16 was a one-off. Few-shot tickets hit 12/12 for the first time in four single runs, which fits the partial flip-rate totals (few-shot 98%, zero-shot 88%).
+- **Direct sits at 12/16 in every run, but cut-offs wander:** 1, 3, then 2. The score holds because the cut-off problems overlap with the ones it gets wrong anyway, or because the prefill answer usually fits in the cap even when the model rambles. We can't tell which without per-case output.
+- **Auto-CoT's input changed a third time:** 16046, 16734, 16798. Every run builds a different prompt from the same clusters.
+- **Zero-shot CoT is the only technique that never moved** on score across five runs of it (projects 3, 4, and two showdowns).
+- **Single runs mislead in both directions.** Run 1 made manual CoT look worse than it is. Run 2 makes few-shot look like a clear win on tickets. Only the flip-rate totals can settle either.
+
 ### Verdict for this model
 
-- **Tickets:** zero-shot. Few-shot costs 2.9x input for the same score.
+- **Tickets:** few-shot, overturned by the flip-rate run below. Zero-shot misses about one ticket per run, almost always 2FA. Stating the 2FA rule in the zero-shot instruction might close the gap at a third of the input, but that's untested.
 - **Math, accuracy first:** zero-shot CoT. 16/16 in every run, and the cheapest input of any CoT variant.
 - **Math, output cost first:** manual few-shot CoT at about a third of the output, if an occasional miss is acceptable.
 - **Auto-CoT:** never the right pick here. It matches zero-shot CoT's score at 16x the input. It would earn its cost on a task where zero-shot CoT makes mistakes.
 
-## Flip rates (partial, 2026-09-29)
+## Flip rates: tickets (2026-09-30)
 
-The first `flip-rates -- tickets` run hit the 500 requests a day cap during its last report. The harness only saved at the end then, so per-case data was lost. Only the totals printed:
+A clean run of `npm run flip-rates -- tickets`: 5 runs per technique, per-case results saved.
 
-| Technique | Run 1 | Run 2 | Run 3 | Run 4 | Run 5 | Total |
-|---|---|---|---|---|---|---|
-| Zero-shot | 11 | 11 | 10 | 11 | 10 | 53/60 (88%) |
-| Few-shot | 12 | 11 | 12 | 12 | lost | 47/48 (98%) |
+| Case | Zero-shot | Few-shot |
+|---|---|---|
+| 2FA "invalid code" | **1/5** (bug x4) | 5/5 |
+| Locked out after update | 4/5 (bug x1) | 5/5 |
+| Other 10 tickets | 5/5 each | 5/5 each |
 
-- **The tie may not be real.** Single runs gave 11/12 each, three times. Over repeated runs zero-shot missed 7 times and few-shot missed once. That's the gap the examples were built to create, and one run per technique hid it. We need the per-case table before we can call it.
-- **The harness now saves each report as it finishes** (`results/flip-rates.jsonl`) and resumes from there, and the client stops at once on the daily cap instead of backing off.
+| Technique | Scores per run | Mean | Avg input |
+|---|---|---|---|
+| Zero-shot | 11, 10, 11, 12, 11 | 92% | 546 |
+| Few-shot | 12, 12, 12, 12, 12 | 100% | 1566 |
+
+With yesterday's partial run (per-case data lost) added: zero-shot 108/120 (90%), few-shot 107/108 (99%).
+
+What we learned:
+
+- **Few-shot wins on tickets. The tie was an artifact of single runs.** Three single runs tied at 11/12, and the per-run spread of zero-shot (10 to 12) is wide enough to hide a one-ticket gap every time.
+- **The whole gap is one house rule.** All 5 of zero-shot's misses today were 2FA (4) or lockout (1) going to `bug`. The model can't guess "2FA counts as `account`"; it can guess the money and "why can't I" rules. Few-shot's examples carry that rule, and the other examples add nothing measurable.
+- **The teammates miss from project 2 was rare.** Few-shot put "invite teammates" in `account` in two single runs, then passed it 5 of 5 today. Yesterday's one lost few-shot miss may have been that ticket.
+- **Rare flips need many runs to show.** Lockout failed 1 in 5 for zero-shot. A single run catches a 20% flip only 1 time in 5, which is how we built a story around it in project 2.
+- **Retries didn't hurt.** Almost every report hit the per-minute limit and backed off up to 32s. All 120 calls finished in one sitting.
+
+The harness saves each report as it finishes (`results/flip-rates.jsonl`) and resumes from there, and the client stops at once on the daily cap instead of backing off.
+
+## Flip rates: math (partial, 2026-09-30)
+
+The daily cap hit while building Auto-CoT demos in run 4. 15 of 20 reports saved; `npm run flip-rates -- math` finishes Auto-CoT run 4 and all of run 5.
+
+| Technique | Scores per run | Total | Avg input | Avg output |
+|---|---|---|---|---|
+| Direct (prefilled) | 12, 11, 13, 13 | 49/64 (77%) | 990 | 102 |
+| Zero-shot CoT | 16, 16, 16, 16 | 64/64 | 1038 | 3464 |
+| Few-shot CoT, manual | 15, 16, 16, 16 | 63/64 | 6750 | 1261 |
+| Auto-CoT | 16, 16, 16 | 48/48 | 15742 to 16894 | 3402 |
+
+Every miss, by case:
+
+| Case | Direct | Few-shot CoT, manual |
+|---|---|---|
+| Overtime (882) | 0/4: got 900 once, cut off 3 times | 4/4 |
+| Sara's marbles (21) | 0/4: 23, 22, 23, cut off once | 3/4: got 20 once |
+| Glasses (13) | 0/4: 11 every time | 4/4 |
+| Ben, train, cyclist | 3/4 each, cut off once | 4/4 |
+
+What we learned:
+
+- **Direct fails the same three problems every run.** Overtime, Sara and glasses, the three with the most intermediate values, never passed bare. Its score floor is 13/16. Anything below that is a random cut-off on an easy problem.
+- **This settles the cut-off question from the showdowns.** Both explanations were half right. Overtime got cut off 3 times out of 4, so the model tries to reason on that problem even after the prefill. Those cut-offs cost nothing, since it gets overtime wrong anyway. The other 4 cut-offs landed on easy problems once each, and those are the lost points. The "got 1" answers were cut-off replies read by the fallback parser.
+- **Glasses is wrong in a stable way:** 11 all four times. That's a consistent error, not noise, and CoT fixes it every time.
+- **Manual few-shot CoT's only miss is Sara, again.** That makes one miss in project 3, likely one in showdown run 1, and one here. It's a rare miss that keeps coming back on one case. Claim #3 said "it passed the next run, so the terse demos aren't the cause". The flip rates say the demos do cause it, about 1 run in 4 to 5.
+- **Zero-shot CoT: 64/64, and Auto-CoT's prompt changed on every build** (15742, 16734, 16894 input tokens). Same as the showdowns.
 
 ## Gotchas hit along the way
 
@@ -171,9 +231,10 @@ These are worth remembering. Each one was a plausible story that a rerun disprov
 
 1. "The reset-password example over-generalized and pushed the teammates ticket to `account`." Removing it didn't fix teammates.
 2. "The missing `account` example made `account` a catch-all." Teammates went to `account` with the account example present too.
-3. "Terse demos teach terse thinking and cause the Sara failure." It passed the next run with the same demos.
+3. "Terse demos teach terse thinking and cause the Sara failure." It passed the next run with the same demos. (Partly restored by the math flip rates: Sara is manual CoT's only miss, about 1 run in 4. "Passed once" never proved a cause wrong.)
 4. "The model senses which problems need reasoning." The set of cut-off problems changed between runs.
 5. "Temperature 0 makes runs repeatable." Only roughly.
+6. "On this model, zero-shot and few-shot tie on tickets." Four single runs said so. Five repeated runs gave 92% vs 100%, all from one rule the model can't guess.
 
 Lesson: test every explanation of why a model did something, the same way you'd test a code change.
 
@@ -181,7 +242,8 @@ Lesson: test every explanation of why a model did something, the same way you'd 
 
 All five projects are run. Every conclusion above rests on one or two runs, and the showdown already flipped one of them. The follow-up worth doing first:
 
-- **Finish the flip-rate runs** with `npm run flip-rates -- tickets` (about 120 calls), then `npm run flip-rates -- math` (about 370 calls). Together they're just under one day's quota, so math may spill into a second day. The harness resumes on its own.
+- **Finish the math flip-rate run** with `npm run flip-rates -- math` after the quota resets (midnight Pacific, 12:30 PM IST). It needs Auto-CoT run 4 and all of run 5, about 90 calls. The harness skips the 15 saved reports.
+- Add "login and 2FA problems count as `account`" to the zero-shot instruction and rerun flip rates on tickets (about 15 min). Tests whether one stated rule matches few-shot at a third of the input.
 
 Other ideas, rough time each:
 
