@@ -11,6 +11,7 @@ A lab notebook for five small projects comparing zero-shot, few-shot, chain of t
 | 3 | CoT on math word problems | `npm run cot` | Run and analyzed, baseline fixed 4 times |
 | 4 | Auto-CoT | `npm run auto-cot` | Run and analyzed |
 | 5 | Showdown, all techniques in one table | `npm run showdown` | Run and analyzed |
+| 6 | Flip rates, 5 runs per technique | `npm run flip-rates` | Tickets and math done |
 
 ## Setup
 
@@ -156,8 +157,8 @@ What we learned:
 ### Verdict for this model
 
 - **Tickets:** few-shot, overturned by the flip-rate run below. Zero-shot misses about one ticket per run, almost always 2FA. Stating the 2FA rule in the zero-shot instruction might close the gap at a third of the input, but that's untested.
-- **Math, accuracy first:** zero-shot CoT. 16/16 in every run, and the cheapest input of any CoT variant.
-- **Math, output cost first:** manual few-shot CoT at about a third of the output, if an occasional miss is acceptable.
+- **Math, accuracy first:** zero-shot CoT. 80/80 in the flip-rate run, and the cheapest input of any CoT variant.
+- **Math, output cost first:** manual few-shot CoT at about a third of the output, with 1 miss in 80. It's cheaper per call whenever output tokens cost more than 2.6x input.
 - **Auto-CoT:** never the right pick here. It matches zero-shot CoT's score at 16x the input. It would earn its cost on a task where zero-shot CoT makes mistakes.
 
 ## Flip rates: tickets (2026-09-30)
@@ -187,33 +188,36 @@ What we learned:
 
 The harness saves each report as it finishes (`results/flip-rates.jsonl`) and resumes from there, and the client stops at once on the daily cap instead of backing off.
 
-## Flip rates: math (partial, 2026-09-30)
+## Flip rates: math (2026-10-01)
 
-The daily cap hit while building Auto-CoT demos in run 4. 15 of 20 reports saved; `npm run flip-rates -- math` finishes Auto-CoT run 4 and all of run 5.
+The daily cap stopped the first attempt in Auto-CoT run 4 on 2026-09-30. The harness resumed from the 15 saved reports and finished the last 5 today, through the usual per-minute backoffs.
 
-| Technique | Scores per run | Total | Avg input | Avg output |
-|---|---|---|---|---|
-| Direct (prefilled) | 12, 11, 13, 13 | 49/64 (77%) | 990 | 102 |
-| Zero-shot CoT | 16, 16, 16, 16 | 64/64 | 1038 | 3464 |
-| Few-shot CoT, manual | 15, 16, 16, 16 | 63/64 | 6750 | 1261 |
-| Auto-CoT | 16, 16, 16 | 48/48 | 15742 to 16894 | 3402 |
+| Technique | Scores per run | Total | Avg input | Avg output | Cut off |
+|---|---|---|---|---|---|
+| Direct (prefilled) | 12, 11, 13, 13, 12 | 61/80 (76%) | 990 | 102 | 9 |
+| Zero-shot CoT | 16, 16, 16, 16, 16 | 80/80 | 1038 | 3446 | 0 |
+| Few-shot CoT, manual | 15, 16, 16, 16, 16 | 79/80 (99%) | 6750 | 1256 | 0 |
+| Auto-CoT | 16, 16, 16, 16, 16 | 80/80 | 16190 (15742 to 16894) | 3394 | 0 |
 
 Every miss, by case:
 
 | Case | Direct | Few-shot CoT, manual |
 |---|---|---|
-| Overtime (882) | 0/4: got 900 once, cut off 3 times | 4/4 |
-| Sara's marbles (21) | 0/4: 23, 22, 23, cut off once | 3/4: got 20 once |
-| Glasses (13) | 0/4: 11 every time | 4/4 |
-| Ben, train, cyclist | 3/4 each, cut off once | 4/4 |
+| Overtime (882) | 0/5: cut off 4 times (read as `1`), 900 once | 5/5 |
+| Sara's marbles (21) | 0/5: 23 x3, 22 once, cut off once | 4/5: 20 once |
+| Glasses (13) | 0/5: 11 every time | 5/5 |
+| Ben's father | 3/5, cut off twice | 5/5 |
+| Train, cyclist | 4/5 each, cut off once | 5/5 |
+| Other 10 problems | 5/5 each | 5/5 each |
 
 What we learned:
 
-- **Direct fails the same three problems every run.** Overtime, Sara and glasses, the three with the most intermediate values, never passed bare. Its score floor is 13/16. Anything below that is a random cut-off on an easy problem.
-- **This settles the cut-off question from the showdowns.** Both explanations were half right. Overtime got cut off 3 times out of 4, so the model tries to reason on that problem even after the prefill. Those cut-offs cost nothing, since it gets overtime wrong anyway. The other 4 cut-offs landed on easy problems once each, and those are the lost points. The "got 1" answers were cut-off replies read by the fallback parser.
-- **Glasses is wrong in a stable way:** 11 all four times. That's a consistent error, not noise, and CoT fixes it every time.
-- **Manual few-shot CoT's only miss is Sara, again.** That makes one miss in project 3, likely one in showdown run 1, and one here. It's a rare miss that keeps coming back on one case. Claim #3 said "it passed the next run, so the terse demos aren't the cause". The flip rates say the demos do cause it, about 1 run in 4 to 5.
-- **Zero-shot CoT: 64/64, and Auto-CoT's prompt changed on every build** (15742, 16734, 16894 input tokens). Same as the showdowns.
+- **Direct fails the same three problems every run.** Overtime, Sara and glasses, the three with the most intermediate values, never passed bare. Its ceiling is 13/16. Every point below that was a cut-off on an easy problem (4 in 5 runs, 2 of them on Ben).
+- **All of math's run-to-run noise lives in direct's cut-offs.** The model's wrong answers barely move. What moves is whether it tries to reason past the prefill. The 9 cut-offs: overtime 4, Ben 2, Sara, train and cyclist 1 each. Overtime's cut-offs cost nothing since it's wrong anyway, which is why the showdowns saw cut-offs wander while the score held.
+- **Two kinds of wrong.** Glasses came back as 11 five times out of five: a stable wrong method. Sara wandered (23, 22): closer to a slip. CoT fixed both every time.
+- **Every manual few-shot CoT miss in the whole study is Sara.** Here 1 in 80. The terse demos do cause it, rarely. Claim #3 is now fully overturned.
+- **Zero-shot CoT and Auto-CoT both scored 80/80.** Auto-CoT paid 15.6x the input for nothing, and 20 of its 80 passes are the leaked demo questions. Its prompt changed on every build.
+- **Cost break-even between the CoT variants.** Zero-shot CoT costs 1038 in + 3446 out per call, manual few-shot CoT 6750 in + 1256 out. They cost the same when output is priced at 2.6x input. Above that ratio, the few-shot version is cheaper per call, and it's always faster, since output length drives latency. Its prefix is the same every call, so context caching would cut the input side further.
 
 ## Gotchas hit along the way
 
@@ -240,9 +244,8 @@ Lesson: test every explanation of why a model did something, the same way you'd 
 
 ## Next steps
 
-All five projects are run. Every conclusion above rests on one or two runs, and the showdown already flipped one of them. The follow-up worth doing first:
+All five projects and both flip-rate runs are done. The flip rates overturned the tickets tie and confirmed every math result. The follow-up worth doing first:
 
-- **Finish the math flip-rate run** with `npm run flip-rates -- math` after the quota resets (midnight Pacific, 12:30 PM IST). It needs Auto-CoT run 4 and all of run 5, about 90 calls. The harness skips the 15 saved reports.
 - Add "login and 2FA problems count as `account`" to the zero-shot instruction and rerun flip rates on tickets (about 15 min). Tests whether one stated rule matches few-shot at a third of the input.
 
 Other ideas, rough time each:
