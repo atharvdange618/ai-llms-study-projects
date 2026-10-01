@@ -156,7 +156,7 @@ What we learned:
 
 ### Verdict for this model
 
-- **Tickets:** few-shot, overturned by the flip-rate run below. Zero-shot misses about one ticket per run, almost always 2FA. Stating the 2FA rule in the zero-shot instruction might close the gap at a third of the input, but that's untested.
+- **Tickets:** zero-shot with the 2FA rule stated. 60/60 in the flip-rate run, same as few-shot, at 43% of its input. Plain zero-shot misses about one ticket per run, almost always 2FA.
 - **Math, accuracy first:** zero-shot CoT. 80/80 in the flip-rate run, and the cheapest input of any CoT variant.
 - **Math, output cost first:** manual few-shot CoT at about a third of the output, with 1 miss in 80. It's cheaper per call whenever output tokens cost more than 2.6x input.
 - **Auto-CoT:** never the right pick here. It matches zero-shot CoT's score at 16x the input. It would earn its cost on a task where zero-shot CoT makes mistakes.
@@ -187,6 +187,25 @@ What we learned:
 - **Retries didn't hurt.** Almost every report hit the per-minute limit and backed off up to 32s. All 120 calls finished in one sitting.
 
 The harness saves each report as it finishes (`results/flip-rates.jsonl`) and resumes from there, and the client stops at once on the daily cap instead of backing off.
+
+## Flip rates: tickets with the 2FA rule stated (2026-10-01)
+
+New technique `zeroShotRule`: the zero-shot prompt plus one line, `Login and 2FA problems count as account.` The harness reused the saved zero-shot and few-shot reports and spent 60 calls on the new one.
+
+| Technique | Scores per run | Total | Avg input |
+|---|---|---|---|
+| Zero-shot | 11, 10, 11, 12, 11 | 55/60 (92%) | 546 |
+| Few-shot | 12, 12, 12, 12, 12 | 60/60 | 1566 |
+| Zero-shot + 2FA rule | 12, 12, 12, 12, 12 | 60/60 | 678 |
+
+2FA went from 1/5 to 5/5 and lockout from 4/5 to 5/5. The other 10 tickets stayed at 5/5, teammates included.
+
+What we learned:
+
+- **One stated sentence did the job of four examples.** Same score as few-shot at 43% of the input (11 extra tokens per call against 85). The project 2 ablations kept failing to pin down which example mattered. One rule in plain words settled it in one run.
+- **The rule didn't spill over.** "Invite teammates", the ticket few-shot used to drag into `account`, passed 5/5. A narrow rule ("login and 2FA") is safer than a broad one ("access problems").
+- **Few-shot's examples taught one thing here.** The model already guessed every other house rule. When you know the rule, write it down. Reach for examples when the rule is hard to state, or to fix output format.
+- **Caveat: we wrote the rule after seeing the failures.** It's a real house rule from the data design, worded as a category definition, not a copy of the failing ticket. Still, tickets outside this set are the only fair test of whether it generalizes.
 
 ## Flip rates: math (2026-10-01)
 
@@ -244,11 +263,7 @@ Lesson: test every explanation of why a model did something, the same way you'd 
 
 ## Next steps
 
-All five projects and both flip-rate runs are done. The flip rates overturned the tickets tie and confirmed every math result. The follow-up worth doing first:
-
-- Add "login and 2FA problems count as `account`" to the zero-shot instruction and rerun flip rates on tickets (about 15 min). Tests whether one stated rule matches few-shot at a third of the input.
-
-Other ideas, rough time each:
+All five projects and both flip-rate runs are done. The flip rates overturned the tickets tie and confirmed every math result, and one stated rule closed the tickets gap. Ideas left, rough time each:
 
 - Plant one wrong demo in Auto-CoT and see if its cluster's problems fail (about 10 min). Tests the paper's main claim, which the clean run couldn't.
 - Hold out the demo questions from Auto-CoT scoring (about 10 min). Removes the leak.
