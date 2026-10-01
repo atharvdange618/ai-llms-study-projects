@@ -15,5 +15,19 @@ Ticket: ${ticket}`,
   parse: (reply) => extractLabel(reply, LABELS),
 };
 
+// Same prompt plus the one house rule zero-shot kept missing in the flip-rate run.
+// Tests whether stating a rule matches few-shot's examples at a third of the input.
+export const zeroShotRule: Technique<Label> = {
+  name: "zero-shot + 2FA rule",
+  prompt: (
+    ticket,
+  ) => `Classify this support ticket into exactly one category: ${LABELS.join(", ")}.
+Login and 2FA problems count as account.
+Reply with only the category name.
+
+Ticket: ${ticket}`,
+  parse: (reply) => extractLabel(reply, LABELS),
+};
+
 if (isMain(import.meta.url))
   printTable([await evaluate(zeroShot, TICKETS, true)]);

@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { zeroShot } from "./01-zero-shot.js";
+import { zeroShot, zeroShotRule } from "./01-zero-shot.js";
 import { fewShot } from "./02-few-shot.js";
 import {
   direct,
@@ -68,7 +68,7 @@ if (only !== undefined && only !== "tickets" && only !== "math")
 for (let run = 1; run <= RUNS; run++) {
   console.log(`\n########## Run ${run} of ${RUNS}`);
   if (only !== "math")
-    for (const t of [zeroShot, fewShot])
+    for (const t of [zeroShot, zeroShotRule, fewShot])
       await record("tickets", run, t, TICKETS);
   if (only !== "tickets") {
     for (const t of [direct, zeroShotCot, manualCot])
